@@ -24,8 +24,6 @@
                 document.getElementById('access_token').textContent = 'Your Access Key from the #url: ' + access_token;
 
                 document.getElementById('user_data').textContent = 'Loading';
-                
-                var broadcasterId
 
                 // call API
                 fetch(
@@ -52,28 +50,28 @@
                         td.textContent = resp.data[0][key];
                         tr.append(td);
                     }
-                    broadcasterId = resp.data[0].id
-                    console.log(broadcasterId)
+                    
+                    var broadcasterId = resp.data[0].id
+                
+                    fetch(
+                        'https://api.twitch.tv/helix/channels?broadcaster_id=' + broadcasterId,
+                        {
+                            method: 'POST',
+                            headers: {
+                                "Client-ID": client_id,
+                                "Authorization": "Bearer " + access_token,
+                                "Content-Type": "application/json"
+                            },
+                            body: '{"title":"title test"}'
+                        }
+                    )
+                    .then(resp => resp.json())
+                    .then(resp => console.log(resp))
                 })
                 .catch(err => {
                     console.log(err);
                     document.getElementById('user_data').textContent = 'Something went wrong';
                 });
-                
-                fetch(
-                    'https://api.twitch.tv/helix/channels?broadcaster_id=' + broadcasterId,
-                    {
-                        method: 'POST',
-                        headers: {
-                            "Client-ID": client_id,
-                            "Authorization": "Bearer " + access_token,
-                            "Content-Type": "application/json"
-                        },
-                        body: '{"title":"title test"}'
-                    }
-                )
-                .then(resp => resp.json())
-                .then(resp => console.log(resp))
             }
         }
     </script>
