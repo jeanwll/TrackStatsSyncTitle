@@ -12,8 +12,9 @@
         // go populate this with a client_id
         var client_id = '7hflhz1a6ifkdztghd6g3abwjz899m';
         var redirect = 'https://jeanwll.github.io/fgstats/';
+        var scope = 'user:edit:broadcast'
 
-        document.getElementById('authorize').setAttribute('href', 'https://id.twitch.tv/oauth2/authorize?client_id=' + client_id + '&redirect_uri=' + encodeURIComponent(redirect) + '&response_type=token')
+        document.getElementById('authorize').setAttribute('href', 'https://id.twitch.tv/oauth2/authorize?client_id=' + client_id + '&redirect_uri=' + encodeURIComponent(redirect) + '&response_type=token&scope=' + scope)
         document.getElementById('access_token').textContent = '';
 
         if (document.location.hash) {
