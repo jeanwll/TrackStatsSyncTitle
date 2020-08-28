@@ -94,6 +94,8 @@
 			statKeysInTitle = []
 		
 			statKeys.forEach(k => { if (title.includes(`[[${k}]]`)) statKeysInTitle.push(k) })
+			
+			if (sync.checked) updateStreamTitle()
 		}
 		
 		const updateStreamTitle = () => {
@@ -101,18 +103,22 @@
 			
 			statKeysInTitle.forEach(k => title = title.replace(`[[${k}]]`, stats[k].value))
 		
-			fetch(
-				`https://api.twitch.tv/helix/channels?broadcaster_id=${reqInfos.broadcasterId}`,
-				{
-					method: 'PATCH',
-					headers: {
-						'Client-ID': reqInfos.clientId,
-						'Authorization': `Bearer ${reqInfos.token}`,
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({title})
-				}
-			)
+			clearTimeout(reqTimeout)
+			
+			reqTimeout = setTimeout(() => {
+				fetch(
+					`https://api.twitch.tv/helix/channels?broadcaster_id=${reqInfos.broadcasterId}`,
+					{
+						method: 'PATCH',
+						headers: {
+							'Client-ID': reqInfos.clientId,
+							'Authorization': `Bearer ${reqInfos.token}`,
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({title})
+					}
+				)
+			}, 3000)
 		}
 	
 		const onWinStreakChange = () => {
@@ -181,6 +187,10 @@
 			const onSyncChange = () => { if (sync.checked) updateStreamTitle() }
 			
 			sync.addEventListener('change', onSyncChange)
+			
+			addEventListener('unload', () => {
+				localStorage.setItem(tokenStorageKey, reqInfos.token)
+			})
 		}
 		
 		const listenGamepad = () => {
@@ -258,7 +268,7 @@
 		const stats = {}
 		const reqInfos = {clientId: '7hflhz1a6ifkdztghd6g3abwjz899m'}
 		
-		let statKeysInTitle = []
+		let statKeysInTitle = [], reqTimeout
 		
 		init()
 		
