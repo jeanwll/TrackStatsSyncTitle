@@ -157,6 +157,8 @@
 		
 			const userData = await (await fetch(req)).json()
 			
+			console.log(userData)
+			
 			reqInfos.broadcasterId = userData.data[0].id
 			
 			username.textContent = userData.data[0].username
@@ -253,11 +255,10 @@
 	
 		
 		const statKeys = ['totalWins', 'todaysWins', 'winStreak', 'bestWinStreak']
-		const statKeysInTitle = []
 		const stats = {}
 		const reqInfos = {clientId: '7hflhz1a6ifkdztghd6g3abwjz899m'}
 		
-		let title
+		let title, statKeysInTitle = []
 		
 		init()
 		
