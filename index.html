@@ -89,18 +89,18 @@
 	<script>
 	
 		const onTitleChange = () => {
-			let titleRaw = titleInput.value
+			let title = titleInput.value
 		
 			statKeysInTitle = []
 		
-			statKeys.forEach(k => { if (titleRaw.includes(`[[${k}]]`)) statKeysInTitle.push(k) })
-			
-			statKeysInTitle.forEach(k => titleRaw = titleRaw.replace(`[[${k}]]`, stats[k].value))
-			
-			title = titleRaw
+			statKeys.forEach(k => { if (title.includes(`[[${k}]]`)) statKeysInTitle.push(k) })
 		}
 		
 		const updateStreamTitle = () => {
+			let title = titleInput.value
+			
+			statKeysInTitle.forEach(k => title = title.replace(`[[${k}]]`, stats[k].value))
+		
 			fetch(
 				`https://api.twitch.tv/helix/channels?broadcaster_id=${reqInfos.broadcasterId}`,
 				{
@@ -258,7 +258,7 @@
 		const stats = {}
 		const reqInfos = {clientId: '7hflhz1a6ifkdztghd6g3abwjz899m'}
 		
-		let title, statKeysInTitle = []
+		let statKeysInTitle = []
 		
 		init()
 		
