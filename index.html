@@ -7,11 +7,6 @@
 			font-family: sans-serif;
 			margin-bottom: 4rem;
 		}
-		input {
-			height: 2rem;
-			vertical-align: middle;
-			font-size: 1.5rem;
-		}
 		#gamepadStatus {
 			margin-bottom: 5rem;
 		}
@@ -30,19 +25,33 @@
 		#gamepadStatus:not([data-connected=true]) p:nth-child(2) {
 			display: none;
 		}
-		#statInputs input {
-		    width: 80px;
-		}
 		#statInputs {
 			margin-bottom: 5rem;
+		}
+		#statInputs p {
+			margin: 0;
+		}
+		#statInputs input {
+		    width: 80px;
+			height: 2rem;
+			background: rgba(0,0,0,0);
+			padding: 0;
+			font-size: 2rem;
+			font-family: inherit;
+			vertical-align: 0%;
+		}
+		#statInputs input:not(:hover) {
+			border-color: rgba(0,0,0,0);
 		}
 		.title-label {
 			margin-bottom: .5rem;
 		}
 		#titleInput {
 			display: block;
-			padding: 1.2rem .5rem;
 			width: 1000px;
+			height: 2rem;
+			padding: 1.2rem .5rem;
+			font-size: 1.5rem;
 		}
 		#accountStatus {
 			margin-top: 2rem;
@@ -150,6 +159,8 @@
 		
 			statKeys.forEach(k => {
 				const p = document.createElement('p')
+				p.classList.add('stat')
+				
 				const input = document.createElement('input')
 				
 				statInputs.appendChild(p).textContent = labels[k]
