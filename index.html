@@ -1,6 +1,6 @@
 <html>
 <head>
-    <title>Win Tracker Sync Title</title>
+    <title>Track Stats Sync Title</title>
 	<style>
 		body {
 			font-size: 2rem;
@@ -78,13 +78,13 @@
 
 	<div id="statInputs"></div>
 	
-	<p class="title-label">Stream title <small id="titleHelper"></small></p>
+	<p class="title-label">Channel title <small id="titleHelper"></small></p>
 	<input type="text" id="titleInput" maxlength="140">
 	<div id="accountStatus">
-		<p><a href="#" id="connectAccountLink">Connect your Twitch Account</a> to synchronise your stream title.</p>
+		<p><a href="#" id="linkAccount">Link your Twitch Account</a> to synchronise your channel title.</p>
 		<p>Connected to <span id="username"></span>. <button id="disconnect">Disconnect</button></p>
 	</div>
-	<label class="sync-label"><input disabled type="checkbox" id="sync">synchronise</label>
+	<label class="sync-label"><input disabled type="checkbox" id="sync">synchronise channel title</label>
 	
 	<script>
 	
@@ -119,25 +119,20 @@
 		
 			statKeys.forEach(k => { if (title.includes(`[[${k}]]`)) statKeysInTitle.push(k) })
 			
-			updateStreamTitle()
+			syncChannelTitle()
 		}
 		
 		const onDisconnect = () => {
-			account.linked = false
+			accountStatus.dataset.linked = false
 		
 			sync.setAttribute('disabled', '')
 			sync.checked = false
-		
-			accountStatus.dataset.linked = false
 			
-			clearInterval(account.validationInterval)
+			account.linked = false
 			
-			const revokeTokenURL = new URL('https://id.twitch.tv/oauth2/revoke')
+			clearInterval(account.isConnectedInterval)
 			
-			revokeTokenURL.searchParams.append('client_id', clientId)
-			revokeTokenURL.searchParams.append('token', account.token)
-			
-			fetch(revokeTokenURL.toString(), {method: 'POST'})
+			localStorage.removeItem(storageKeys.token)
 		}
 		
 		const init = () => {
@@ -157,7 +152,7 @@
 				
 				const onChange = () => {
 					if (!input.value) input.value = 0
-					if (statKeysInTitle.includes(k)) updateStreamTitle()
+					if (statKeysInTitle.includes(k)) syncChannelTitle()
 				}
 				
 				input.addEventListener('change', onChange)
@@ -167,7 +162,7 @@
 		
 			titleHelper.textContent = `use ${statKeys.map(k => `[[${k}]]`).join(', ')}`
 			
-			const storedInputsJSON = localStorage.getItem(storageKey)
+			const storedInputsJSON = localStorage.getItem(storageKeys.inputs)
 			
 			if (storedInputsJSON) {
 				const storedInputs = JSON.parse(storedInputsJSON)
@@ -184,7 +179,7 @@
 			
 			onTitleChange()
 			
-			setConnectAccountLink()
+			setLinkAccountHref()
 			
 			listenEvents()
 			
@@ -193,15 +188,15 @@
 			checkAccount()
 		}
 		
-		const setConnectAccountLink = () => {
+		const setLinkAccountHref = () => {
 			const url = new URL('https://id.twitch.tv/oauth2/authorize')
 			
 			url.searchParams.append('client_id', clientId)
-			url.searchParams.append('redirect_uri', 'https://jeanwll.github.io/wtst/')
+			url.searchParams.append('redirect_uri', `${location.origin}${location.pathname}`)
 			url.searchParams.append('response_type', 'token')
 			url.searchParams.append('scope', 'user:edit:broadcast')
 		
-			connectAccountLink.href = url.toString()
+			linkAccount.href = url.toString()
 		}
 		
 		const listenEvents = () => {
@@ -209,7 +204,7 @@
 			
 			titleInput.addEventListener('change', onTitleChange)
 			
-			sync.addEventListener('change', updateStreamTitle)
+			sync.addEventListener('change', syncChannelTitle)
 			
 			disconnect.addEventListener('click', onDisconnect)
 			
@@ -218,7 +213,9 @@
 				
 				statKeys.forEach(k => storedStats[k] = stats[k].value)
 				
-				localStorage.setItem(storageKey, JSON.stringify({stats: storedStats, title: titleInput.value}))
+				localStorage.setItem(storageKeys.inputs, JSON.stringify({stats: storedStats, title: titleInput.value}))
+				
+				if (account.linked) localStorage.setItem(storageKeys.token, account.token)
 			})
 		
 		}
@@ -260,6 +257,46 @@
 		}
 		
 		const checkAccount = async () => {
+			const token = getToken()
+			
+			if (!token) return
+			
+			const req = new Request(
+				'https://id.twitch.tv/oauth2/validate',
+				{headers: {'Authorization': `OAuth ${token}`}}
+			)
+		
+			const resp = await fetch(req)
+			
+			if (!resp.ok) return
+		
+			const tokenData = await resp.json()
+			
+			username.textContent = tokenData.login
+			
+			accountStatus.dataset.linked = true
+			
+			sync.removeAttribute('disabled')
+			
+			account.id = tokenData.user_id
+			account.token = token
+			account.linked = true
+			
+			account.isConnectedInterval = setInterval(async () => {
+				const req = new Request(
+					'https://id.twitch.tv/oauth2/validate',
+					{headers: {'Authorization': `OAuth ${account.token}`}}
+				)
+				
+				if (!(await fetch(req)).ok) onDisconnect()
+			}, 1000 * 60 * 60)
+		}
+		
+		const getToken = () => {
+			const storedToken = localStorage.getItem(storageKeys.token)
+			
+			if (storedToken) return storedToken
+		
 			const hash = location.hash
 			
 			if (!hash) return
@@ -268,53 +305,12 @@
 			
 			if (!hashParams.has('access_token')) return
 			
-			const token = hashParams.get('access_token')
-			
 			location.hash = ''
 			
-			const req = new Request(
-				'https://api.twitch.tv/helix/users',
-				{
-					headers: {
-						'Client-ID': clientId,
-						'Authorization': `Bearer ${token}`
-					}
-				}
-			)
-		
-			const resp = await fetch(req)
-			
-			if (!resp.ok) return
-		
-			const userData = (await resp.json()).data[0]
-			
-			connectAccount(userData.id, userData.display_name, token)
+			return hashParams.get('access_token')
 		}
 		
-		const connectAccount = (id, name, token) => {
-			account.id = id
-			account.token = token
-			
-			username.textContent = name
-			
-			accountStatus.dataset.linked = true
-			
-			sync.removeAttribute('disabled')
-			
-			account.linked = true
-			
-			account.validationInterval = setInterval(async () => {
-				const req = new Request(
-					'https://id.twitch.tv/oauth2/validate',
-					{headers: {'Authorization': `OAuth ${account.token}`}}
-				)
-				
-				if (!(await fetch(req)).ok) onDisconnect()
-			}, 1000 * 60 * 60)
-			// required hourly validation of tokens
-		}
-		
-		const updateStreamTitle = () => {
+		const syncChannelTitle = () => {
 			if (!account.linked || !sync.checked) return
 		
 			let title = titleInput.value
@@ -340,21 +336,17 @@
 				)
 			
 				if (!(await fetch(req)).ok) onDisconnect()
-				// user logged out from twitch and trying to update stream title
 			}, 3000)
 		}
 	
 		const statKeys = ['totalWins', 'todaysWins', 'winStreak', 'bestWinStreak']
-		const storageKey = 'inputs'
+		const storageKeys = {inputs: 'inputs', token: 'token'}
 		const stats = {}
 		const clientId = '7hflhz1a6ifkdztghd6g3abwjz899m'
 		const account = {}
 		const changeEvt = new Event('change')
 		
 		let statKeysInTitle = [], reqTimeout
-		
-		localStorage.removeItem('stats')
-		localStorage.removeItem('token')
 		
 		init()
     </script>
