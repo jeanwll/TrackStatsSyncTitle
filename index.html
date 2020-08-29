@@ -44,6 +44,9 @@
 			padding: 1.2rem .5rem;
 			width: 1000px;
 		}
+		#accountStatus {
+			margin-top: 2rem;
+		}
 		#accountStatus p {
 			margin: .5rem 0 0 0;
 			font-size: 1.5rem;
@@ -59,11 +62,13 @@
 		}
 		#disconnect {
 			vertical-align: 25%;
+			cursor: pointer;
 		}
 		.sync-label {
-			display: flex;
+			display: inline-flex;
 			align-items: center;
 			font-size: 1.2rem;
+			cursor: pointer;
 		}
 		#accountStatus:not([data-linked=true]) + .sync-label {
 			opacity: .5;
@@ -214,8 +219,6 @@
 				statKeys.forEach(k => storedStats[k] = stats[k].value)
 				
 				localStorage.setItem(storageKeys.inputs, JSON.stringify({stats: storedStats, title: titleInput.value}))
-				
-				if (account.linked) localStorage.setItem(storageKeys.token, account.token)
 			})
 		
 		}
@@ -269,6 +272,7 @@
 			const resp = await fetch(req)
 			
 			if (!resp.ok) return
+			// integration disconnected or token expired
 		
 			const tokenData = await resp.json()
 			
@@ -290,6 +294,8 @@
 				
 				if (!(await fetch(req)).ok) onDisconnect()
 			}, 1000 * 60 * 60)
+			
+			localStorage.setItem(storageKeys.token, token)
 		}
 		
 		const getToken = () => {
