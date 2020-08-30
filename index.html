@@ -4,33 +4,33 @@
 	<style>
 		body {
 			background-color: rgba(0, 0, 0, 0);
-			font-size: 2rem;
 			font-family: sans-serif;
 		}
-		#gamepadStatus {
-			margin-bottom: 5rem;
+		section {
+			margin-bottom: 4rem;
 		}
-		#gamepadStatus p:nth-child(1) {
-			color: red;
+		h2 {
+			font-size: 1.5rem;
 		}
-		#gamepadStatus p:nth-child(2) {
-			color: green;
+		h2, p {
+			margin: 0;
 		}
-		#gamepadStatus small {
-			color: black;
+		small {
+			font-size: inherit;
+			font-weight: normal;
 		}
-		#gamepadStatus[data-connected=true] p:nth-child(1) {
-			display: none;
+		.content {
+			padding: 1rem 0 0 1rem;
+			font-size: 1.3rem;
 		}
-		#gamepadStatus:not([data-connected=true]) p:nth-child(2) {
-			display: none;
+		.content p:not(:last-of-type) {
+			margin-bottom: .5rem;
 		}
+		
 		#statInputs {
-			margin-bottom: 5rem;
 			font-size: 4rem;
 		}
 		#statInputs p {
-			margin: 0;
 			color: var(--color);
 			-webkit-text-stroke: var(--outline);
 			font-family: var(--font), sans-serif;
@@ -49,62 +49,83 @@
 		#statInputs input:not(:hover) {
 			border-color: rgba(0,0,0,0);
 		}
-		.title-label {
-			margin-bottom: .5rem;
+		
+		.linked {
+			color: green;
+		}
+		#channelTitle[data-linked=true] .not-linked {
+			display: none;
+		}
+		#channelTitle:not([data-linked=true]) .linked {
+			display: none;
+		}
+		#disconnectBtn {
+			vertical-align: 25%;
+			cursor: pointer;
 		}
 		#titleInput {
 			display: block;
 			width: 1000px;
 			height: 2rem;
-			padding: 1.2rem .5rem;
+			padding: 1.4rem 0.7rem;
+			margin-bottom: .1rem;
 			font-size: 1.5rem;
 		}
-		#accountStatus {
-			margin-top: 2rem;
+		.helper {
+			color: #666;
+			font-style: italic;
 		}
-		#accountStatus p {
-			margin: .5rem 0 0 0;
-			font-size: 1.5rem;
+		.sync {
+			display: inline-block;
+			cursor: pointer;
 		}
-		#accountStatus p:nth-child(2) {
+		#channelTitle:not([data-linked=true]) .sync {
+			color: #666;
+		}
+		
+		.not-connected {
+			color: red;
+		}
+		.connected {
 			color: green;
 		}
-		#accountStatus[data-linked=true] p:nth-child(1) {
+		#bindings[data-connected=true] .not-connected {
 			display: none;
 		}
-		#accountStatus:not([data-linked=true]) p:nth-child(2) {
+		#bindings:not([data-connected=true]) .connected {
 			display: none;
 		}
-		#disconnect {
-			vertical-align: 25%;
-			cursor: pointer;
-		}
-		.sync-label {
-			display: inline-flex;
-			align-items: center;
-			font-size: 1.2rem;
-			cursor: pointer;
-		}
-		#accountStatus:not([data-linked=true]) + .sync-label {
-			opacity: .5;
+		.bind {
+		    font-style: italic;
+			width: 5rem;
 		}
 	</style>
 </head>
 <body>
-	<div id="gamepadStatus">
-		<p>Gamepad not connected.</p>
-		<p>Gamepad connected. <small>Add win: Back + A, Reset win streak: Back + B</small></p>
-	</div>
-
-	<div id="statInputs"></div>
+	<section id="statInputs"></section>
 	
-	<p class="title-label">Channel title <small id="titleHelper"></small></p>
-	<input type="text" id="titleInput" maxlength="140">
-	<div id="accountStatus">
-		<p><a href="#" id="linkAccount">Link your Twitch Account</a> to synchronise your channel title.</p>
-		<p>Connected to <span id="username"></span>. <button id="disconnect">Disconnect</button></p>
-	</div>
-	<label class="sync-label"><input disabled type="checkbox" id="sync">synchronise channel title</label>
+	<section id="channelTitle">
+		<h2>Channel Title 
+			<small class="not-linked"><a href="#" id="linkAccount">Link your Twitch Account</a> to synchronise</small>
+			<small class="linked">Connected to <span id="username"></span> <button id="disconnectBtn">Disconnect</button></small>
+		</h2>
+		<div class="content">
+			<p class="helper">Use <span id="titleHelper"></span></p>
+			<input type="text" id="titleInput" maxlength="140">
+			<p class="sync"><input disabled type="checkbox" id="sync">synchronise</p>
+		</div>
+	</section>
+	
+	<section id="bindings">
+		<h2>Bindings 
+			<small class="not-connected">Gamepad not connected</small>
+			<small class="connected">Gamepad connected</small>
+		</h2>
+		<div class="content">
+			<p>Back + X <span class="bind">Add win</span> </p>
+			<p>Back + B <span class="bind">Reset win streak</span></p>
+		</div>
+	</section>
 	
 	<script>
 	
@@ -142,26 +163,6 @@
 			syncChannelTitle()
 		}
 		
-		const onDisconnect = () => {
-			accountStatus.dataset.linked = false
-		
-			sync.setAttribute('disabled', '')
-			sync.checked = false
-			
-			account.linked = false
-			
-			clearInterval(account.validateTokenInterval)
-			
-			localStorage.removeItem(storageKeys.token)
-			
-			const url = new URL('https://id.twitch.tv/oauth2/revoke')
-			
-			url.searchParams.append('client_id', clientId)
-			url.searchParams.append('token', account.token)
-			
-			fetch(url.toString(), {method: 'POST'})
-		}
-		
 		const init = () => {
 			const labels = {
 				totalWins: 'Total wins: ',
@@ -187,7 +188,7 @@
 				stats[k] = input
 			})
 		
-			titleHelper.textContent = `use ${statKeys.map(k => `[[${k}]]`).join(', ')}`
+			titleHelper.textContent = statKeys.map(k => `[[${k}]]`).join(', ')
 			
 			const storedInputsJSON = localStorage.getItem(storageKeys.inputs)
 			
@@ -233,7 +234,7 @@
 			
 			sync.addEventListener('change', syncChannelTitle)
 			
-			disconnect.addEventListener('click', onDisconnect)
+			disconnectBtn.addEventListener('click', disconnect, {once: true})
 			
 			addEventListener('unload', () => {
 				const storedStats = {}
@@ -250,11 +251,11 @@
 			
 			while (!(gamepad = navigator.getGamepads()[0])) await new Promise(r => setTimeout(r, 1000))
 			
-			gamepadStatus.dataset.connected = true
+			bindings.dataset.connected = true
 			
 			const binds = [
 				{btnId: 1, action: onResetWinStreak},
-				{btnId: 0, action: onAddWin},
+				{btnId: 2, action: onAddWin},
 			]
 			
 			do {
@@ -280,7 +281,7 @@
 				
 			} while (gamepad = navigator.getGamepads()[0])
 			
-			gamepadStatus.dataset.connected = false
+			bindings.dataset.connected = false
 			
 			listenGamepad()
 		}
@@ -304,7 +305,7 @@
 			
 			username.textContent = tokenData.login
 			
-			accountStatus.dataset.linked = true
+			channelTitle.dataset.linked = true
 			
 			sync.removeAttribute('disabled')
 			
@@ -313,7 +314,7 @@
 			account.linked = true
 			
 			account.validateTokenInterval = setInterval(async () => {
-				if (!(await fetch(validateTokenReq)).ok) onDisconnect()
+				if (!(await fetch(validateTokenReq)).ok) disconnect()
 			}, 1000 * 60 * 60)
 			
 			localStorage.setItem(storageKeys.token, token)
@@ -362,8 +363,28 @@
 					}
 				)
 			
-				if (!(await fetch(req)).ok) onDisconnect()
+				if (!(await fetch(req)).ok) disconnect()
 			}, 3000)
+		}
+		
+		const disconnect = () => {
+			channelTitle.dataset.linked = false
+		
+			sync.setAttribute('disabled', '')
+			sync.checked = false
+			
+			account.linked = false
+			
+			clearInterval(account.validateTokenInterval)
+			
+			localStorage.removeItem(storageKeys.token)
+			
+			const url = new URL('https://id.twitch.tv/oauth2/revoke')
+			
+			url.searchParams.append('client_id', clientId)
+			url.searchParams.append('token', account.token)
+			
+			fetch(url.toString(), {method: 'POST'})
 		}
 	
 		const statKeys = ['totalWins', 'todaysWins', 'winStreak', 'bestWinStreak']
