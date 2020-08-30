@@ -32,7 +32,7 @@
 			font-size: 4rem;
 		}
 		#statInputs input {
-		    width: 4ch;
+			width: 4ch;
 			background: rgba(0,0,0,0);
 			padding: 0;
 			color: inherit;
@@ -87,7 +87,7 @@
 <body>
 	<div id="gamepadStatus">
 		<p>Gamepad not connected.</p>
-		<p>Gamepad connected. <small>Add win: Left Stick, Reset win streak: Back</small></p>
+		<p>Gamepad connected. <small>Add win: Back + A, Reset win streak: Back + B</small></p>
 	</div>
 
 	<div id="statInputs"></div>
@@ -144,9 +144,16 @@
 			
 			account.linked = false
 			
-			clearInterval(account.isConnectedInterval)
+			clearInterval(account.validateTokenInterval)
 			
 			localStorage.removeItem(storageKeys.token)
+			
+			const url = new URL('https://id.twitch.tv/oauth2/revoke')
+			
+			url.searchParams.append('client_id', clientId)
+			url.searchParams.append('token', account.token)
+			
+			fetch(url.toString(), {method: 'POST'})
 		}
 		
 		const init = () => {
@@ -181,9 +188,9 @@
 			const storedInputsJSON = localStorage.getItem(storageKeys.inputs)
 			
 			if (storedInputsJSON) {
-				const storedInputs = JSON.parse(storedInputsJSON)
+				const storedInputs = JSON.parse(storedInputsJSON), storedStats = storedInputs.stats
 				
-				Object.entries(storedInputs.stats).forEach(stat => { stats[stat[0]].value = stat[1] })
+				statKeys.forEach(k => { if (storedStats[k]) stats[k].value = storedStats[k] })
 				
 				titleInput.value = storedInputs.title
 			}
@@ -242,23 +249,27 @@
 			gamepadStatus.dataset.connected = true
 			
 			const binds = [
-				{btnId: 8, action: onResetWinStreak},
-				{btnId: 10, action: onAddWin},
+				{btnId: 1, action: onResetWinStreak},
+				{btnId: 0, action: onAddWin},
 			]
 			
 			do {
-				binds.forEach(b => {
+				const backPressed = gamepad.buttons[8].pressed
+				
+				binds.some(b => {
 					const btn = gamepad.buttons[b.btnId]
 					
-					if (b.wasPressed && !btn.pressed) {
-						b.wasPressed = false
+					if (backPressed && btn.pressed) {
+						if (!b.pressed) {
+							b.pressed = true
+							
+							b.action()
+						}
 						
-						b.action()
-						
-						return
+						return true
 					}
 					
-					if (btn.pressed) b.wasPressed = true
+					b.pressed = false
 				})
 				
 				await new Promise(r => requestAnimationFrame(r))
@@ -275,12 +286,12 @@
 			
 			if (!token) return
 			
-			const req = new Request(
+			const validateTokenReq = new Request(
 				'https://id.twitch.tv/oauth2/validate',
 				{headers: {'Authorization': `OAuth ${token}`}}
 			)
 		
-			const resp = await fetch(req)
+			const resp = await fetch(validateTokenReq)
 			
 			if (!resp.ok) return
 			// integration disconnected or token expired
@@ -297,13 +308,8 @@
 			account.token = token
 			account.linked = true
 			
-			account.isConnectedInterval = setInterval(async () => {
-				const req = new Request(
-					'https://id.twitch.tv/oauth2/validate',
-					{headers: {'Authorization': `OAuth ${account.token}`}}
-				)
-				
-				if (!(await fetch(req)).ok) onDisconnect()
+			account.validateTokenInterval = setInterval(async () => {
+				if (!(await fetch(validateTokenReq)).ok) onDisconnect()
 			}, 1000 * 60 * 60)
 			
 			localStorage.setItem(storageKeys.token, token)
